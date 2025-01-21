@@ -15,7 +15,7 @@ export default function Form() {
   const markDocumentAsViewed = useCallback(async () => {
     if (!documentId) return;
     try {
-      await axios.patch(`http://localhost:5000/documents/${documentId}/view`);
+      await axios.patch(`https://backendapp-5qm1.onrender.com/documents/${documentId}/view`);
       console.log("Document marked as viewed.");
     } catch (error) {
       console.error("Error marking document as viewed:", error);
@@ -62,7 +62,7 @@ export default function Form() {
     setMessage("");
 
     try {
-      const response = await axios.post("http://localhost:5000/documents", {
+      const response = await axios.post("https://backendapp-5qm1.onrender.com/documents", {
         title: "Document Title",
         subject: "Document Subject",
         message: "Please sign this document.",
