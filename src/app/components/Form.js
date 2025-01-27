@@ -1,33 +1,16 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState } from "react";
 import axios from "axios";
 
 export default function Form() {
-  const [participants, setParticipants] = useState([{ name: "", email: "" }]);
-  const [signingType, setSigningType] = useState("regular");
+  const [participants, setParticipants] = useState([
+    { role: "BUYER", name: "", email: "" },
+    { role: "SELLER", name: "", email: "" },
+  ]);
+  const [templateId, setTemplateId] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
-  const [file, setFile] = useState(null);
-  const [documentId, setDocumentId] = useState(null); // Track document ID
-
-  // Function to mark the document as viewed
-  const markDocumentAsViewed = useCallback(async () => {
-    if (!documentId) return;
-    try {
-      await axios.patch(`https://backendapp-5qm1.onrender.com/documents/${documentId}/view`);
-      console.log("Document marked as viewed.");
-    } catch (error) {
-      console.error("Error marking document as viewed:", error);
-    }
-  }, [documentId]);
-
-  // Call markDocumentAsViewed when the documentId is set
-  useEffect(() => {
-    if (documentId) {
-      markDocumentAsViewed();
-    }
-  }, [documentId, markDocumentAsViewed]);
 
   // Handle participant input change
   const handleParticipantChange = (index, field, value) => {
@@ -36,46 +19,31 @@ export default function Form() {
     setParticipants(updatedParticipants);
   };
 
-  // Add new participant field
-  const addParticipant = () => {
-    setParticipants([...participants, { name: "", email: "" }]);
-  };
-
-  // Handle file input change
-  const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0];
-    if (selectedFile && selectedFile.type === "application/pdf") {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFile(reader.result.split(",")[1]); // Remove the data URL prefix
-      };
-      reader.readAsDataURL(selectedFile);
-    } else {
-      setMessage("Please select a valid PDF file.");
-    }
-  };
-
-  // Handle form submission to create a signature request
+  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setMessage("");
 
     try {
-      const response = await axios.post("https://backendapp-5qm1.onrender.com/documents", {
-        title: "Document Title",
-        subject: "Document Subject",
-        message: "Please sign this document.",
-        participants,
-        signingType,
-        base64Content: file,
-      });
+      const payload = {
+        templateId,
+        participants: participants.map((participant) => ({
+          role: participant.role.toUpperCase(),
+          name: participant.name.trim(),
+          email: participant.email.trim(),
+          test_mode: 1,
+        })),
+      };
+
+      console.log("Payload sent to backend:", payload); // Debugging step
+
+      const response = await axios.post("http://localhost:5000/documents", payload);
 
       if (response.status === 200) {
-        setMessage("Document sent successfully for signing!");
-        setDocumentId(response.data.savedDocument.id); // Capture the document ID for further actions
+        setMessage("Template sent successfully for signing!");
       } else {
-        setMessage(response.data.message || "Failed to send document.");
+        setMessage("send template");
       }
     } catch (error) {
       console.error("Error:", error);
@@ -86,21 +54,49 @@ export default function Form() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-500 via-purple-600 to-pink-500 flex flex-col justify-between">
-      <header className="p-4 bg-white shadow-md text-center">
-        <h1 className="text-xl font-bold text-gray-800">Document Signing Portal</h1>
-        <p className="text-sm text-gray-500">Effortlessly send and manage your agreements</p>
+    <div className="min-h-screen bg-gradient-to-br from-blue-500 via-purple-600 to-pink-500 flex flex-col justify-between relative">
+      {/* Background Animation */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-white opacity-20 rounded-full animate-pulse blur-3xl"></div>
+        <div className="absolute bottom-1/3 right-1/3 w-96 h-96 bg-purple-300 opacity-30 rounded-full animate-ping blur-2xl"></div>
+        <div className="absolute bottom-10 left-10 w-64 h-64 bg-pink-400 opacity-25 rounded-full animate-pulse blur-3xl"></div>
+      </div>
+
+      <header className="p-4 bg-white shadow-md text-center z-10">
+        <h1 className="text-2xl font-bold text-gray-800">Document Signing Portal</h1>
+        <p className="text-sm text-gray-500">Send templates for signing</p>
       </header>
 
-      <main className="flex-grow flex justify-center items-center">
+      <main className="flex-grow flex justify-center items-center z-10">
         <form
-          className="w-full max-w-md bg-white p-6 rounded-lg shadow-lg"
+          className="w-full max-w-md bg-white p-6 rounded-lg shadow-2xl backdrop-blur-md"
           onSubmit={handleSubmit}
         >
-          <h2 className="text-lg font-semibold text-gray-700 text-center mb-4">Send Agreement for Signature</h2>
+          <h2 className="text-lg font-semibold text-gray-700 text-center mb-4">
+            Send Template for Signature
+          </h2>
+
+          <input
+            type="text"
+            placeholder="Template ID"
+            className="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 mb-4 text-gray-800"
+            value={templateId}
+            onChange={(e) => setTemplateId(e.target.value)}
+            required
+          />
 
           {participants.map((participant, index) => (
             <div key={index} className="flex flex-col gap-2 mb-4">
+              <select
+                className="p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-800"
+                value={participant.role}
+                onChange={(e) =>
+                  handleParticipantChange(index, "role", e.target.value)
+                }
+              >
+                <option value="buyer">BUYER</option>
+                <option value="seller">SELLER</option>
+              </select>
               <input
                 type="text"
                 placeholder="Name"
@@ -123,34 +119,10 @@ export default function Form() {
               />
             </div>
           ))}
-          <button
-            type="button"
-            className="w-full p-3 bg-gray-700 text-white rounded-md shadow-sm hover:bg-gray-800 mb-4"
-            onClick={addParticipant}
-          >
-            Add Participant
-          </button>
-
-          <select
-            className="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 mb-4 text-gray-800"
-            value={signingType}
-            onChange={(e) => setSigningType(e.target.value)}
-          >
-            <option value="regular">Regular Signing</option>
-            <option value="notary">Notary Signing</option>
-          </select>
-
-          <input
-            type="file"
-            accept="application/pdf"
-            onChange={handleFileChange}
-            required
-            className="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-purple-500 mb-4 text-gray-800"
-          />
 
           <button
             type="submit"
-            className={`w-full p-3 bg-blue-600 text-white rounded-md shadow-md hover:bg-blue-700 ${
+            className={`w-full p-3 bg-blue-600 text-white rounded-md shadow-md hover:bg-blue-700 transition-transform transform hover:scale-105 ${
               loading ? "opacity-50" : ""
             }`}
             disabled={loading}
@@ -162,7 +134,7 @@ export default function Form() {
         </form>
       </main>
 
-      <footer className="p-4 bg-white shadow-md text-center">
+      <footer className="p-4 bg-white shadow-md text-center z-10">
         <p className="text-sm text-gray-500">&copy; 2025 Document Signing Portal. All rights reserved.</p>
       </footer>
     </div>
